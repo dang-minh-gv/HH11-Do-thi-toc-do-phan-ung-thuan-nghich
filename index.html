@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đồ Thị Động - Cân Bằng Hóa Học</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #050b14; /* Deep navy/space background */
+            color: #ffffff;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            width: 100vw;
+        }
+
+        .presentation-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        .glass-panel {
+            background: rgba(13, 25, 48, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 255, 255, 0.05);
+        }
+
+        .text-glow-cyan { text-shadow: 0 0 12px rgba(0, 255, 255, 0.8); }
+        .text-glow-orange { text-shadow: 0 0 12px rgba(255, 152, 0, 0.8); }
+
+        .btn-control {
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-control:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+        .btn-control:active {
+            transform: scale(0.96);
+        }
+
+        /* Custom slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            height: 40px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #00ffff;
+            cursor: pointer;
+            margin-top: -10px;
+            box-shadow: 0 0 15px #00ffff, 0 0 5px white inset;
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #1e3a8a;
+            border-radius: 2px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 12px 12px 0 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="presentation-container glass-panel">
+        
+        <!-- Header -->
+        <header class="text-center mb-4 mt-2">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-white uppercase tracking-wide text-glow-cyan">
+                Sự biến thiên tốc độ phản ứng thuận và phản ứng nghịch theo thời gian
+            </h1>
+        </header>
+
+        <!-- Main Graph Area -->
+        <div class="flex-grow w-full relative bg-[#091024] rounded-t-xl border border-gray-700 shadow-inner flex flex-col overflow-hidden">
+            <canvas id="graphCanvas"></canvas>
+            
+            <!-- Slider Overlay at bottom of canvas -->
+            <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#050b14] to-transparent px-8 pb-4 pt-12">
+                <div class="flex items-center gap-4">
+                    <span class="text-gray-400 font-mono text-lg">0s</span>
+                    <input type="range" id="timeSlider" min="0" max="100" step="0.1" value="0" class="flex-grow">
+                    <span class="text-gray-400 font-mono text-lg">∞</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Area -->
+        <div class="w-full bg-[#0d172e] border-t border-cyan-900 rounded-b-xl p-4 md:p-6 flex flex-wrap justify-center items-center gap-4">
+            
+            <button onclick="controls.play()" class="btn-control bg-green-600 border border-green-400 text-white py-3 px-6 md:px-8 text-lg shadow-[0_0_15px_rgba(22,163,74,0.4)] hover:shadow-[0_0_20px_rgba(22,163,74,0.6)]">
+                ▶ Bắt đầu
+            </button>
+            
+            <button onclick="controls.pause()" class="btn-control bg-yellow-600 border border-yellow-400 text-white py-3 px-6 md:px-8 text-lg shadow-[0_0_15px_rgba(202,138,4,0.4)]">
+                ⏸ Tạm dừng
+            </button>
+            
+            <button onclick="controls.resume()" class="btn-control bg-blue-600 border border-blue-400 text-white py-3 px-6 md:px-8 text-lg shadow-[0_0_15px_rgba(37,99,235,0.4)]">
+                ⏯ Tiếp tục
+            </button>
+            
+            <button onclick="controls.reset()" class="btn-control bg-red-600 border border-red-400 text-white py-3 px-6 md:px-8 text-lg shadow-[0_0_15px_rgba(220,38,38,0.4)]">
+                ↺ Xem lại
+            </button>
+            
+            <button onclick="controls.skipToEquilibrium()" class="btn-control bg-purple-600 border border-purple-400 text-white py-3 px-6 md:px-8 text-lg shadow-[0_0_15px_rgba(147,51,234,0.4)]">
+                ⏭ Tiến tới cân bằng
+            </button>
+            
+            <button onclick="controls.toggleAnnotations()" id="btn-anno" class="btn-control bg-cyan-800 border border-cyan-500 text-cyan-100 py-3 px-6 md:px-8 text-lg ml-auto">
+                Ẩn chú thích
+            </button>
+            
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('timeSlider');
+
+        // State variables
+        let time = 0;
+        const MAX_TIME = 100;
+        const EQ_TIME = 60; // Equilibrium reached at t=60
+        let isPlaying = false;
+        let showAnnotations = true;
+        let animFrame;
+
+        // Constants for drawing
+        const marginX = 80;
+        const marginY = 60;
+        const eqConstantRate = 0.45; // Equilibrium Y position (45% from bottom)
+        const k = 0.08; // Rate of change
+
+        function resizeCanvas() {
+            // High DPI support for sharp rendering on large screens
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            
+            ctx.scale(dpr, dpr);
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+            
+            draw();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Core Math Functions for Rates
+        // Map time (0-100) to Canvas Y Coordinates
+        function getVfY(t, h) {
+            const startY = marginY; // Start high (small Y)
+            const eqY = h - marginY - (h - 2*marginY) * eqConstantRate;
+            return eqY - (eqY - startY) * Math.exp(-k * t);
+        }
+
+        function getVrY(t, h) {
+            const startY = h - marginY; // Start low (large Y)
+            const eqY = h - marginY - (h - 2*marginY) * eqConstantRate;
+            return eqY + (startY - eqY) * Math.exp(-k * t);
+        }
+
+        function drawRoundedRect(ctx, x, y, w, h, r, bgColor, borderColor) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+            ctx.fillStyle = bgColor;
+            ctx.fill();
+            if(borderColor) {
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = borderColor;
+                ctx.stroke();
+            }
+        }
+
+        function drawTextBubble(text, x, y, color, isCentered = false) {
+            ctx.font = '16px Inter';
+            ctx.textAlign = isCentered ? 'center' : 'left';
+            ctx.textBaseline = 'middle';
+            
+            const metrics = ctx.measureText(text);
+            const p = 10;
+            const w = metrics.width + p * 2;
+            const h = 30;
+            const startX = isCentered ? x - w/2 : x;
+            
+            drawRoundedRect(ctx, startX, y - h/2, w, h, 6, 'rgba(13, 25, 48, 0.85)', color);
+            
+            ctx.fillStyle = color;
+            ctx.fillText(text, isCentered ? x : x + p, y);
+        }
+
+        function draw() {
+            const w = canvas.clientWidth;
+            const h = canvas.clientHeight;
+            const graphW = w - marginX * 2;
+            
+            ctx.clearRect(0, 0, w, h);
+
+            // 1. Draw Grid and Axes
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#4b5563'; // gray-600
+            
+            // Y Axis
+            ctx.beginPath();
+            ctx.moveTo(marginX, marginY - 20);
+            ctx.lineTo(marginX, h - marginY);
+            // X Axis
+            ctx.lineTo(w - marginX + 20, h - marginY);
+            ctx.stroke();
+
+            // Arrows
+            ctx.beginPath();
+            ctx.moveTo(marginX - 6, marginY - 10); ctx.lineTo(marginX, marginY - 25); ctx.lineTo(marginX + 6, marginY - 10);
+            ctx.moveTo(w - marginX + 10, h - marginY - 6); ctx.lineTo(w - marginX + 25, h - marginY); ctx.lineTo(w - marginX + 10, h - marginY + 6);
+            ctx.fillStyle = '#4b5563';
+            ctx.fill();
+
+            // Axis Labels
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '600 20px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('Tốc độ', marginX, marginY - 40);
+            ctx.fillText('phản ứng (v)', marginX, marginY - 20);
+            
+            ctx.textAlign = 'left';
+            ctx.fillText('Thời gian (t)', w - marginX + 30, h - marginY + 5);
+
+            // Legend
+            drawTextBubble("v thuận", w - marginX - 250, marginY - 10, '#f97316');
+            drawTextBubble("v nghịch", w - marginX - 120, marginY - 10, '#22d3ee');
+
+            // 2. Draw Curves up to current time
+            const currentX = marginX + (time / MAX_TIME) * graphW;
+
+            // Forward Curve (Orange)
+            ctx.beginPath();
+            ctx.strokeStyle = '#f97316'; // orange-500
+            ctx.lineWidth = 5;
+            ctx.lineJoin = 'round';
+            ctx.shadowColor = '#f97316';
+            ctx.shadowBlur = 10;
+            for(let t = 0; t <= time; t += 0.5) {
+                const x = marginX + (t / MAX_TIME) * graphW;
+                const y = getVfY(t, h);
+                if (t === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Draw leading dot for Forward
+            ctx.beginPath();
+            ctx.fillStyle = '#fff';
+            ctx.arc(currentX, getVfY(time, h), 6, 0, Math.PI*2);
+            ctx.fill();
+
+            // Reverse Curve (Cyan)
+            ctx.beginPath();
+            ctx.strokeStyle = '#22d3ee'; // cyan-400
+            ctx.shadowColor = '#22d3ee';
+            
+            let switchedToDash = false;
+            
+            for(let t = 0; t <= time; t += 0.5) {
+                const x = marginX + (t / MAX_TIME) * graphW;
+                const y = getVrY(t, h);
+                
+                if (t === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+
+                // Khi đạt cân bằng, vẽ nét đứt đường màu xanh để lộ đường màu cam bên dưới
+                // tạo thành hiệu ứng 2 màu đan xen nhau liên tục.
+                if (t >= EQ_TIME && !switchedToDash) {
+                    ctx.stroke(); // Vẽ đoạn nét liền trước đó
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.setLineDash([15, 15]); // Bắt đầu nét đứt
+                    switchedToDash = true;
+                }
+            }
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset nét đứt
+            ctx.shadowBlur = 0; // Reset shadow
+
+            // Draw leading dot for Reverse
+            ctx.beginPath();
+            ctx.fillStyle = '#fff';
+            ctx.arc(currentX, getVrY(time, h), 6, 0, Math.PI*2);
+            ctx.fill();
+
+            // 3. Equilibrium Indicators
+            const eqX = marginX + (EQ_TIME / MAX_TIME) * graphW;
+            const eqY = h - marginY - (h - 2*marginY) * eqConstantRate;
+
+            if (time >= EQ_TIME) {
+                // Dashed vertical line
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 8]);
+                ctx.moveTo(eqX, marginY);
+                ctx.lineTo(eqX, h - marginY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Glowing intersection point
+                ctx.beginPath();
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 20;
+                ctx.arc(eqX, eqY, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Equilibrium Label
+                ctx.font = 'bold 18px Inter';
+                ctx.fillStyle = '#fbbf24'; // amber-400
+                ctx.textAlign = 'center';
+                ctx.fillText('CÂN BẰNG HÓA HỌC', eqX, marginY + 20);
+                
+                ctx.font = '14px Inter';
+                ctx.fillStyle = '#d1d5db';
+                ctx.fillText('Thời điểm đạt trạng thái cân bằng', eqX, h - marginY + 25);
+                
+                // Dynamic Arrows on the horizontal line indicating dynamic equilibrium
+                if (time > EQ_TIME + 5) {
+                    const arrowAnimTime = Date.now() / 1000;
+                    const offset = Math.sin(arrowAnimTime * 3) * 15; // Oscillate
+                    
+                    const midX = eqX + (currentX - eqX) / 2;
+                    if(midX > eqX + 20) {
+                        // Forward symbolic arrow (Top)
+                        ctx.fillStyle = '#f97316';
+                        ctx.font = '24px Arial';
+                        ctx.fillText('→', midX + offset, eqY - 15);
+                        // Reverse symbolic arrow (Bottom)
+                        ctx.fillStyle = '#22d3ee';
+                        ctx.fillText('←', midX - offset, eqY + 18);
+                    }
+                }
+            }
+
+            // 4. Pedagogical Annotations
+            if (showAnnotations) {
+                ctx.font = 'bold 18px Inter';
+                
+                if (time > 2 && time < 20) {
+                    drawTextBubble("Ban đầu: v thuận > v nghịch", marginX + 20, h - marginY - 40, '#ffffff');
+                }
+                else if (time >= 20 && time < EQ_TIME - 2) {
+                    // Hiển thị chú thích ở giữa 2 đường khi đang chạy
+                    const dynX = marginX + (time / MAX_TIME) * graphW;
+                    const yMid = (getVfY(time, h) + getVrY(time, h)) / 2;
+                    drawTextBubble("v thuận giảm, v nghịch tăng", dynX - 100, yMid, '#ffffff', true);
+                }
+                else if (time >= EQ_TIME - 2 && time < EQ_TIME + 15) {
+                    drawTextBubble("v thuận = v nghịch ≠ 0", eqX, eqY - 40, '#fbbf24', true);
+                }
+                else if (time >= EQ_TIME + 15) {
+                    const text = "Hai phản ứng vẫn tiếp tục xảy ra với tốc độ bằng nhau và khác 0";
+                    drawTextBubble(text, eqX + (w - marginX - eqX)/2, eqY - 60, '#a7f3d0', true);
+                }
+            }
+        }
+
+        function animationLoop() {
+            if (!isPlaying) return;
+            
+            time += 0.2; // Control playback speed here
+            if (time > MAX_TIME) {
+                time = MAX_TIME;
+                isPlaying = false;
+            }
+            
+            slider.value = time;
+            draw();
+            
+            if (isPlaying) {
+                animFrame = requestAnimationFrame(animationLoop);
+            }
+        }
+
+        // Controllers
+        const controls = {
+            play: () => {
+                if (time >= MAX_TIME) time = 0;
+                isPlaying = true;
+                cancelAnimationFrame(animFrame);
+                animationLoop();
+            },
+            pause: () => {
+                isPlaying = false;
+                cancelAnimationFrame(animFrame);
+            },
+            resume: () => {
+                if (!isPlaying && time < MAX_TIME) {
+                    isPlaying = true;
+                    animationLoop();
+                }
+            },
+            reset: () => {
+                isPlaying = false;
+                cancelAnimationFrame(animFrame);
+                time = 0;
+                slider.value = 0;
+                draw();
+            },
+            skipToEquilibrium: () => {
+                isPlaying = false;
+                cancelAnimationFrame(animFrame);
+                time = EQ_TIME + 10; // Jump slightly past intersection to show the flat line
+                slider.value = time;
+                draw();
+            },
+            toggleAnnotations: () => {
+                showAnnotations = !showAnnotations;
+                const btn = document.getElementById('btn-anno');
+                if(showAnnotations) {
+                    btn.innerText = "Ẩn chú thích";
+                    btn.classList.replace('bg-gray-700', 'bg-cyan-800');
+                    btn.classList.replace('text-gray-400', 'text-cyan-100');
+                    btn.classList.replace('border-gray-600', 'border-cyan-500');
+                } else {
+                    btn.innerText = "Hiện chú thích";
+                    btn.classList.replace('bg-cyan-800', 'bg-gray-700');
+                    btn.classList.replace('text-cyan-100', 'text-gray-400');
+                    btn.classList.replace('border-cyan-500', 'border-gray-600');
+                }
+                draw();
+            }
+        };
+
+        // Slider Interaction
+        slider.addEventListener('input', (e) => {
+            time = parseFloat(e.target.value);
+            draw();
+        });
+        
+        slider.addEventListener('mousedown', () => controls.pause());
+        slider.addEventListener('touchstart', () => controls.pause(), {passive: true});
+
+        // Initialize
+        setTimeout(() => {
+            resizeCanvas();
+        }, 100); // Slight delay to ensure flexbox calculates correct dimensions
+
+    </script>
+</body>
+</html>
